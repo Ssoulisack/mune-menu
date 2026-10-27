@@ -78,7 +78,6 @@ export default function Qr() {
           </div>
           {dataUrl && <img src={dataUrl} alt="Menu QR code" className="my-3 w-[70mm]" />}
           <div className="text-base font-medium">{caption}</div>
-          <div className="mt-1 break-all text-xs text-stone-500">{url}</div>
         </div>
       </div>
     </>

@@ -20,7 +20,11 @@ export const settings = sqliteTable("settings", {
   tagline: text("tagline"),
   logoKey: text("logo_key"),
   currency: text("currency").notNull().default("LAK"),
+  // No longer used (replaced by `whatsapp`, which was filled from it); kept so old data isn't lost.
   phone: text("phone"),
+  whatsapp: text("whatsapp"),
+  facebookUrl: text("facebook_url"),
+  tiktokUrl: text("tiktok_url"),
   address: text("address"),
   openingHours: text("opening_hours"),
   defaultLanguage: text("default_language").$type<LangCode>().notNull().default("lo"),

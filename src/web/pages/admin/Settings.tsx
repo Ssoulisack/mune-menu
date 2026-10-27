@@ -8,6 +8,8 @@ import { otherLanguages, TranslationFields } from "../../components/TranslationF
 import { Button, Card, ErrorNote, Field, Input, PageTitle, Select } from "../../components/ui";
 import { usePreviewDraft, type PreviewDraft } from "../../components/preview/PreviewContext";
 import { applySettingsDraft, sameValue } from "../../components/preview/drafts";
+import { SocialIcon, type SocialName } from "../../components/SocialIcon";
+import { normalizeFacebook, normalizeTiktok, whatsappDigits } from "../../../shared/social";
 
 export default function Settings() {
   const { data, setData, error: loadError } = useFetch<SettingsDTO>("/api/admin/settings");
@@ -111,9 +113,6 @@ export default function Settings() {
           <Field label={`Address (${mainLabel})`}>
             <Input maxLength={300} value={form.address ?? ""} onChange={(e) => set("address", e.target.value)} />
           </Field>
-          <Field label="Phone">
-            <Input type="tel" value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value)} />
-          </Field>
           <div className="grid gap-4 sm:grid-cols-2">
             <Field label="Currency code" hint="e.g. LAK, THB, USD. Changing it does not convert existing prices.">
               <Input required maxLength={3} value={form.currency} onChange={(e) => set("currency", e.target.value.toUpperCase())} />
@@ -122,6 +121,44 @@ export default function Settings() {
               <Input required value={form.timezone} onChange={(e) => set("timezone", e.target.value)} placeholder="Asia/Vientiane" />
             </Field>
           </div>
+        </Card>
+
+        <Card className="space-y-4">
+          <div>
+            <h2 className="font-semibold">Contact &amp; social</h2>
+            <p className="text-sm text-stone-500">Shown under your name on the menu, with each app's logo. Leave a field empty to hide it.</p>
+          </div>
+          <SocialField
+            name="whatsapp"
+            label="WhatsApp number"
+            value={form.whatsapp}
+            onChange={(v) => set("whatsapp", v)}
+            placeholder="+856 20 5555 0100"
+            hint="With country code. Customers tap it to open a WhatsApp chat with you."
+            valid={(v) => whatsappDigits(v) !== null}
+            invalidHint="Use the full number with its country code, e.g. +856 20 5555 0100"
+            inputMode="tel"
+          />
+          <SocialField
+            name="facebook"
+            label="Facebook page"
+            value={form.facebookUrl}
+            onChange={(v) => set("facebookUrl", v)}
+            placeholder="facebook.com/yourcafe"
+            hint="Paste the page link, or just the page name."
+            valid={(v) => normalizeFacebook(v) !== null}
+            invalidHint="This doesn't look like a Facebook link or page name."
+          />
+          <SocialField
+            name="tiktok"
+            label="TikTok"
+            value={form.tiktokUrl}
+            onChange={(v) => set("tiktokUrl", v)}
+            placeholder="@yourcafe"
+            hint="Paste the profile link, or just your @username."
+            valid={(v) => normalizeTiktok(v) !== null}
+            invalidHint="This doesn't look like a TikTok link or @username."
+          />
         </Card>
 
         {extraLangs.length > 0 && (
@@ -150,5 +187,46 @@ export default function Settings() {
         </div>
       </form>
     </>
+  );
+}
+
+function SocialField({
+  name,
+  label,
+  value,
+  onChange,
+  placeholder,
+  hint,
+  valid,
+  invalidHint,
+  inputMode,
+}: {
+  name: SocialName;
+  label: string;
+  value: string | null;
+  onChange: (value: string) => void;
+  placeholder: string;
+  hint: string;
+  valid: (value: string) => boolean;
+  invalidHint: string;
+  inputMode?: "tel";
+}) {
+  const text = value ?? "";
+  const bad = text.trim() !== "" && !valid(text);
+  return (
+    <Field label={label} hint={bad ? undefined : hint}>
+      <div className="relative">
+        <SocialIcon name={name} className="pointer-events-none absolute left-3 top-1/2 size-5 -translate-y-1/2" />
+        <Input
+          value={text}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          inputMode={inputMode}
+          aria-invalid={bad || undefined}
+          className={`pl-10 ${bad ? "border-red-400 focus:border-red-500 focus:ring-red-500" : ""}`}
+        />
+      </div>
+      {bad && <span className="mt-1 block text-xs text-red-600">{invalidHint}</span>}
+    </Field>
   );
 }

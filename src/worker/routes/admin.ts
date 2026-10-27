@@ -11,6 +11,7 @@ import { buildMenu } from "../lib/menu";
 import { DEFAULT_THEME, type MenuTheme } from "../../shared/theme";
 import type { LangCode } from "../../shared/i18n";
 import type { MediaDTO } from "../../shared/types";
+import { normalizeFacebook, normalizeTiktok, whatsappDigits } from "../../shared/social";
 import { purgeMenuCache } from "../lib/cache";
 import { ALLOWED_IMAGE_TYPES, imageStore, MAX_IMAGE_BYTES, PHOTO_PREFIX } from "../lib/images";
 import { requireAccess } from "../middleware/access";
@@ -35,13 +36,19 @@ adminRoutes.get("/preview-menu", async (c) => c.json(await buildMenu(c.get("db")
 
 // ---- Settings ----
 
+/** Optional social link: accepts a full link or just the page name / @handle, stores the full link. */
+const socialLink = (normalize: (v: string) => string | null, message: string) =>
+  optionalText.refine((v) => !v || normalize(v) !== null, message).transform((v) => (v ? normalize(v) : null));
+
 const settingsBody = z
   .object({
     restaurantName: z.string().trim().min(1).max(120),
     tagline: optionalText,
     logoKey: optionalText,
     currency: z.string().trim().toUpperCase().regex(/^[A-Z]{3}$/, "Use a 3-letter currency code"),
-    phone: optionalText,
+    whatsapp: optionalText.refine((v) => !v || whatsappDigits(v) !== null, "Enter the WhatsApp number with its country code, e.g. +856 20 5555 0100"),
+    facebookUrl: socialLink(normalizeFacebook, "Enter your Facebook page link or page name"),
+    tiktokUrl: socialLink(normalizeTiktok, "Enter your TikTok link or @username"),
     address: optionalText,
     openingHours: optionalText,
     defaultLanguage: langCode,

@@ -9,7 +9,10 @@ export interface SettingsDTO {
   tagline: string | null;
   logoKey: string | null;
   currency: string;
-  phone: string | null;
+  /** WhatsApp number in international format, e.g. "+856 20 5555 0100". */
+  whatsapp: string | null;
+  facebookUrl: string | null;
+  tiktokUrl: string | null;
   address: string | null;
   openingHours: string | null;
   defaultLanguage: LangCode;

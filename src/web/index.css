@@ -75,6 +75,20 @@ html {
   animation: m-brand-bar 900ms cubic-bezier(0.22, 1, 0.36, 1) 250ms both;
   transform-origin: left center;
 }
+/* Footer: one slim line in the theme colours, topped by a thin bar in the brand gradient. */
+.m-footer {
+  position: relative;
+  background: color-mix(in srgb, var(--m-primary) 7%, var(--m-bg));
+}
+.m-footer::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--m-primary), var(--m-brand-to, var(--m-primary)), var(--m-primary));
+}
+.m-footer__note { color: color-mix(in srgb, var(--m-text) 60%, transparent); }
+
 /* Tagline and info under the name pick up the same brand colours (set on the header by MenuView). */
 .m-tagline {
   font-weight: 500;
@@ -95,9 +109,20 @@ html {
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
 }
-.m-info-chip--link { transition: background 150ms, transform 150ms; }
-.m-info-chip--link:hover { background: linear-gradient(135deg, rgb(255 255 255 / 0.26), rgb(255 255 255 / 0.12)); }
-.m-info-chip--link:active { transform: scale(0.97); }
+/* Contact/social logo buttons (WhatsApp, Facebook, TikTok) in the header: white discs the height of the hours pill. */
+.m-social-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(255 255 255 / 0.35), 0 4px 14px -6px rgb(0 0 0 / 0.35);
+  transition: transform 150ms;
+}
+.m-social-button:hover { transform: translateY(-1px); }
+.m-social-button:active { transform: scale(0.94); }
 .m-info-icon {
   display: grid;
   place-items: center;
@@ -108,6 +133,14 @@ html {
   color: color-mix(in srgb, var(--m-primary) 65%, black);
   background: linear-gradient(135deg, var(--m-brand-from, #fff), var(--m-brand-to, #ffe9c7));
   box-shadow: 0 0 10px color-mix(in srgb, var(--m-brand-to, #ffe9c7) 60%, transparent);
+}
+/* Phones: the header is narrow (it's the size container), so the info pills and logo buttons shrink. */
+@container (max-width: 30rem) {
+  .m-info-chip { gap: 0.4rem; padding: 0.2rem 0.65rem 0.2rem 0.2rem; font-size: 0.75rem; }
+  .m-info-icon { width: 1.35rem; height: 1.35rem; }
+  .m-info-icon svg { width: 0.75rem; height: 0.75rem; }
+  .m-social-button { width: 1.8rem; height: 1.8rem; }
+  .m-social-button svg { width: 1rem; height: 1rem; }
 }
 /* Banner under the header: a ribbon in the theme's header colours that slowly flows, with a light
    sweep now and then, bright edges, and twinkling sparkles in the brand colours. */
@@ -141,7 +174,28 @@ html {
   background: linear-gradient(105deg, transparent 35%, rgb(255 255 255 / 0.35) 50%, transparent 65%) 0 0 / 250% 100% no-repeat;
   animation: m-banner-sweep 6s ease-in-out 1.5s infinite;
 }
-.m-banner__text { position: relative; text-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 14px rgb(0 0 0 / 0.15); }
+.m-banner__text { position: relative; min-width: 0; text-shadow: 0 1px 2px rgb(0 0 0 / 0.3), 0 0 14px rgb(0 0 0 / 0.15); }
+
+/* One-line text that scrolls in an endless loop when it's too long (Marquee.tsx). */
+.m-marquee { display: block; overflow: hidden; white-space: nowrap; }
+.m-marquee__track { display: inline-flex; }
+.m-marquee__copy { display: inline-block; }
+.m-marquee--loop {
+  flex: 1;
+  /* Text fades in and out at the edges instead of being cut. */
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+  mask-image: linear-gradient(90deg, transparent, #000 7%, #000 93%, transparent);
+}
+.m-marquee--loop .m-marquee__copy { padding-right: 3rem; }
+.m-marquee--loop .m-marquee__track { animation: m-marquee linear infinite; }
+.m-marquee--loop:hover .m-marquee__track { animation-play-state: paused; }
+@keyframes m-marquee { to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  /* No scrolling: let the text wrap onto more lines instead. */
+  .m-marquee { white-space: normal; }
+  .m-marquee--loop { -webkit-mask-image: none; mask-image: none; }
+  .m-marquee--loop .m-marquee__track { animation: none; }
+}
 .m-banner__spark {
   position: relative;
   flex: none;
@@ -196,32 +250,18 @@ html {
   .m-deco { display: none; }
 }
 
-/* Category change turns like a book page: forward pages swing in hinged on the left (the spine),
-   going back swings in from the right. A shadow on the page fades as it lands flat. */
-.m-enter-next, .m-enter-prev { animation: 1100ms cubic-bezier(0.33, 0.1, 0.2, 1) both; backface-visibility: hidden; will-change: transform, opacity; }
-.m-enter-next { transform-origin: left center; animation-name: m-page-next; }
-.m-enter-prev { transform-origin: right center; animation-name: m-page-prev; }
-@keyframes m-page-next {
-  from { opacity: 0; transform: perspective(2000px) rotateY(-75deg); }
-  35% { opacity: 1; }
-  to { opacity: 1; transform: perspective(2000px) rotateY(0deg); }
-}
-@keyframes m-page-prev {
-  from { opacity: 0; transform: perspective(2000px) rotateY(75deg); }
-  35% { opacity: 1; }
-  to { opacity: 1; transform: perspective(2000px) rotateY(0deg); }
-}
-.m-enter-next::after, .m-enter-prev::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  animation: m-page-shade 1100ms cubic-bezier(0.33, 0.1, 0.2, 1) both;
-}
-.m-enter-next::after { background: linear-gradient(to right, rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.35)); }
-.m-enter-prev::after { background: linear-gradient(to left, rgb(0 0 0 / 0.05), rgb(0 0 0 / 0.35)); }
-@keyframes m-page-shade { from { opacity: 1; } to { opacity: 0; } }
+/* Category change slides like a carousel: the old page slides out one side while the new one slides
+   in from the other (forward: right to left; back: left to right). Keep 450ms in sync with SLIDE_MS. */
+.m-enter-next, .m-enter-prev, .m-leave-next, .m-leave-prev { animation: 450ms cubic-bezier(0.32, 0.72, 0, 1) both; }
+.m-enter-next { animation-name: m-slide-in-from-right; }
+.m-enter-prev { animation-name: m-slide-in-from-left; }
+.m-leave-next { animation-name: m-slide-out-to-left; }
+.m-leave-prev { animation-name: m-slide-out-to-right; }
+@keyframes m-slide-in-from-right { from { transform: translateX(100%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes m-slide-in-from-left { from { transform: translateX(-100%); opacity: 0.4; } to { transform: none; opacity: 1; } }
+@keyframes m-slide-out-to-left { from { transform: none; opacity: 1; } to { transform: translateX(-100%); opacity: 0.4; } }
+@keyframes m-slide-out-to-right { from { transform: none; opacity: 1; } to { transform: translateX(100%); opacity: 0.4; } }
 @media (prefers-reduced-motion: reduce) {
   .m-enter-next, .m-enter-prev { animation: none; }
-  .m-enter-next::after, .m-enter-prev::after { display: none; }
+  .m-leave-next, .m-leave-prev { display: none; }
 }

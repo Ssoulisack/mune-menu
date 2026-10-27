@@ -9,6 +9,9 @@ import AnimatedList from "./AnimatedList/AnimatedList";
 import ClickSpark from "./ClickSpark";
 import { InfoIcon } from "./InfoIcon";
 import { LanguageMenu } from "./LanguageMenu";
+import { Marquee } from "./Marquee";
+import { SocialIcon } from "./SocialIcon";
+import { normalizeFacebook, normalizeTiktok, whatsappLink } from "../../shared/social";
 import { LayoutIcon } from "./LayoutIcon";
 import MagicRings from "./MagicRings/MagicRings";
 import { useEdgePager, type PageDirection } from "../lib/useEdgePager";
@@ -16,6 +19,7 @@ import { useEdgePager, type PageDirection } from "../lib/useEdgePager";
 type MenuItem = PublicMenu["categories"][number]["items"][number];
 
 const LAYOUT_STORAGE_KEY = "mune.layout";
+const SLIDE_MS = 450; // keep in sync with the m-enter / m-leave animations in index.css
 /** The "All" tab: every category on one page. */
 const ALL = "all";
 
@@ -42,8 +46,9 @@ interface Props {
 export function MenuView({ menu, theme, lang, onLangChange, contained = false, focusCategoryId = null }: Props) {
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<number | typeof ALL | null>(null);
-  // Direction of the last category change, for the slide-in animation.
-  const [enterDir, setEnterDir] = useState<PageDirection | null>(null);
+  // Slide in progress: which way, and what was showing before (it slides out while the new one
+  // slides in). `n` restarts the animation on quick taps.
+  const [slide, setSlide] = useState<{ dir: PageDirection; from: number | typeof ALL; n: number } | null>(null);
   const landAtBottom = useRef(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -91,7 +96,7 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
   useEffect(() => {
     if (focusCategoryId == null) return;
     setSelectedId(focusCategoryId);
-    setEnterDir(null);
+    setSlide(null);
     setQuery("");
   }, [focusCategoryId]);
 
@@ -128,11 +133,22 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
     if (tab && strip) strip.scrollTo({ left: tab.offsetLeft - strip.clientWidth / 2 + tab.clientWidth / 2, behavior: "smooth" });
   }, [activeId]);
 
-  // "All" counts as the page before the first category, for the turn direction.
+  // The outgoing page is only kept for the length of the slide.
+  useEffect(() => {
+    if (!slide) return;
+    const id = setTimeout(() => setSlide(null), SLIDE_MS + 50);
+    return () => clearTimeout(id);
+  }, [slide]);
+  const sliding = slide && !searching ? slide : null;
+  const leaving = sliding ? (sliding.from === ALL ? menu.categories : menu.categories.filter((c) => c.id === sliding.from)) : [];
+
+  // "All" counts as the page before the first category, for the slide direction.
   function selectCategory(id: number | typeof ALL, dir?: PageDirection) {
     const from = menu.categories.findIndex((c) => c.id === activeId);
     const to = menu.categories.findIndex((c) => c.id === id);
-    setEnterDir(dir ?? (to > from ? "next" : to < from ? "prev" : null));
+    const slideDir = dir ?? (to > from ? "next" : to < from ? "prev" : null);
+    const previous = activeId;
+    setSlide(slideDir && previous != null && previous !== id && !searching ? (s) => ({ dir: slideDir, from: previous, n: (s?.n ?? 0) + 1 }) : null);
     setSelectedId(id);
     setQuery("");
     if (dir === "prev") {
@@ -147,7 +163,7 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
     if (scrolled > nav.offsetTop) (scroller ?? window).scrollTo({ top: nav.offsetTop });
   }
 
-  // One category's items; `enterClass` plays the page-turn animation when the category changes.
+  // One category's items; `enterClass` plays the slide-in animation when the category changes.
   function renderCategory(c: PublicMenu["categories"][number], enterClass: string) {
     return (
       <section key={c.id} className={`relative pt-6 ${enterClass}`}>
@@ -193,6 +209,14 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
         : `linear-gradient(135deg, ${theme.primary}, ${theme.headerColor2})`;
 
   const banner = theme.banner[lang] || theme.banner[settings.defaultLanguage];
+  // Normalised here too, so the backoffice preview shows the link while it's still being typed.
+  const facebook = settings.facebookUrl ? normalizeFacebook(settings.facebookUrl) : null;
+  const tiktok = settings.tiktokUrl ? normalizeTiktok(settings.tiktokUrl) : null;
+  const socials = [
+    settings.whatsapp && { name: "whatsapp" as const, href: whatsappLink(settings.whatsapp), label: "WhatsApp" },
+    facebook && { name: "facebook" as const, href: facebook, label: "Facebook" },
+    tiktok && { name: "tiktok" as const, href: tiktok, label: "TikTok" },
+  ].filter((s) => !!s);
   const dark = isDark(theme.background);
 
   // Paint the animated list's rows with the menu theme instead of its built-in dark/light palette.
@@ -271,31 +295,39 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
               {info("tagline") && <p className="m-tagline mt-3">{info("tagline")}</p>}
             </div>
           </div>
-          {(info("openingHours") || info("address") || settings.phone) && (
-            <div className="mx-auto mt-5 flex max-w-2xl flex-wrap gap-2 text-sm">
-              {info("openingHours") && (
-                <span className="m-info-chip">
-                  <span className="m-info-icon">
-                    <InfoIcon name="clock" className="size-3.5" />
+          {/* Opening hours on the left, contact/social logos on the right; the address underneath. */}
+          {(info("openingHours") || info("address") || socials.length > 0) && (
+            <div className="mx-auto mt-5 max-w-2xl space-y-2 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                {info("openingHours") ? (
+                  <span className="m-info-chip">
+                    <span className="m-info-icon">
+                      <InfoIcon name="clock" className="size-3.5" />
+                    </span>
+                    {info("openingHours")}
                   </span>
-                  {info("openingHours")}
-                </span>
-              )}
+                ) : (
+                  <span />
+                )}
+                {socials.length > 0 && (
+                  <span className="flex gap-2">
+                    {socials.map((s) => (
+                      <a key={s.name} href={s.href} target="_blank" rel="noreferrer" aria-label={s.label} title={s.label} className="m-social-button">
+                        <SocialIcon name={s.name} className={s.name === "facebook" ? "size-[22px]" : "size-5"} />
+                      </a>
+                    ))}
+                  </span>
+                )}
+              </div>
               {info("address") && (
-                <span className="m-info-chip">
-                  <span className="m-info-icon">
-                    <InfoIcon name="pin" className="size-3.5" />
+                <div>
+                  <span className="m-info-chip">
+                    <span className="m-info-icon">
+                      <InfoIcon name="pin" className="size-3.5" />
+                    </span>
+                    {info("address")}
                   </span>
-                  {info("address")}
-                </span>
-              )}
-              {settings.phone && (
-                <a href={`tel:${settings.phone.replace(/\s/g, "")}`} className="m-info-chip m-info-chip--link">
-                  <span className="m-info-icon">
-                    <InfoIcon name="phone" className="size-3.5" />
-                  </span>
-                  {settings.phone}
-                </a>
+                </div>
               )}
             </div>
           )}
@@ -309,7 +341,7 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
             <span aria-hidden className="m-banner__spark">
               ✦
             </span>
-            <span className="m-banner__text">{banner}</span>
+            <Marquee className="m-banner__text">{banner}</Marquee>
             <span aria-hidden className="m-banner__spark m-banner__spark--late">
               ✦
             </span>
@@ -373,11 +405,19 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
           </div>
         </nav>
 
-        <main className="@container relative mx-auto max-w-2xl overflow-x-clip px-4 pb-[calc(env(safe-area-inset-bottom)+4rem)]">
+        <main className="@container relative mx-auto max-w-2xl overflow-x-clip px-4 pb-12">
           {visibleCategories.length === 0 && (
             <p className="m-muted py-16 text-center">{searching ? ui.noMatch.replace("{q}", query) : ui.empty}</p>
           )}
-          {visibleCategories.map((c) => renderCategory(c, !searching && enterDir ? `m-enter-${enterDir}` : ""))}
+          {/* While sliding, the old page moves out on top of the new one moving in (clipped to the page). */}
+          <div className={`relative ${sliding ? "overflow-clip" : ""}`}>
+            {visibleCategories.map((c) => renderCategory(c, sliding ? `m-enter-${sliding.dir}` : ""))}
+            {sliding && (
+              <div key={`leaving-${sliding.n}`} aria-hidden inert className={`pointer-events-none absolute inset-x-0 top-0 m-leave-${sliding.dir}`}>
+                {leaving.map((c) => renderCategory(c, ""))}
+              </div>
+            )}
+          </div>
 
           {!searching && menu.categories.length > 1 && (
             <div className="mt-8 flex items-stretch gap-2">
@@ -419,8 +459,27 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
             </div>
           )}
         </main>
+
+        <MenuFooter name={info("restaurantName") ?? ""} pricesNote={ui.pricesIn.replace("{c}", settings.currency)} style={brandColors(theme)} />
       </ClickSpark>
     </div>
+  );
+}
+
+interface MenuFooterProps {
+  name: string;
+  pricesNote: string;
+  style: CSSProperties;
+}
+
+/** Slim footer: © and the prices note on one line. */
+function MenuFooter({ name, pricesNote, style }: MenuFooterProps) {
+  return (
+    <footer className="m-footer" style={style}>
+      <div className="m-footer__note mx-auto max-w-2xl px-5 pb-[calc(env(safe-area-inset-bottom)+0.9rem)] pt-4 text-center text-xs">
+        © {new Date().getFullYear()} {name} · {pricesNote}
+      </div>
+    </footer>
   );
 }
 
@@ -452,20 +511,17 @@ function ItemCard({ item, layout, lang, locale, currency, soldOutLabel }: ItemCa
   if (layout === "grid") {
     return (
       <div className={`flex w-full flex-col ${dim}`}>
-        <div className="relative">
-          {photo("aspect-square w-full") ?? (
-            // No photo: a tinted tile with the item's initial keeps the grid even.
-            <div
-              aria-hidden
-              className="m-img m-price grid aspect-square w-full place-items-center text-4xl font-bold"
-              style={{ background: "color-mix(in srgb, var(--m-primary) 12%, transparent)" }}
-            >
-              {name.trim().charAt(0).toUpperCase()}
-            </div>
-          )}
-          {soldOut && <span className="absolute left-1.5 top-1.5">{soldOut}</span>}
-        </div>
-        <h3 className="mt-2 px-0.5 text-sm font-semibold leading-snug">{name}</h3>
+        {item.imageKey ? (
+          <div className="relative mb-2">
+            {photo("aspect-square w-full")}
+            {soldOut && <span className="absolute left-1.5 top-1.5">{soldOut}</span>}
+          </div>
+        ) : (
+          // No photo: a text card (name and description); the price still sits at the bottom.
+          soldOut && <span className="mb-1.5 px-0.5">{soldOut}</span>
+        )}
+        <h3 className={`px-0.5 font-semibold leading-snug ${item.imageKey ? "text-sm" : "pt-1 text-base"}`}>{name}</h3>
+        {!item.imageKey && description && <p className="m-muted mt-1 line-clamp-4 px-0.5 text-xs leading-relaxed">{description}</p>}
         {hasOptions ? (
           <ul className="mt-auto space-y-0.5 px-0.5 pt-1 text-sm">
             {options.map((o) => (
