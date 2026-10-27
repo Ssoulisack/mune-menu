@@ -1,0 +1,43 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mune",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": { "enabled": true },
+
+  // The React app. Anything not under /api or /img falls back to index.html (SPA routing).
+  "assets": {
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/img/*"]
+  },
+
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "mune-db",
+      // Replace with the id printed by `wrangler d1 create mune-db` before deploying.
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+
+  // Item photos. KV needs no payment card. To use R2 instead, add an "r2_buckets"
+  // entry with binding "IMAGES_R2" — the worker prefers R2 when that binding exists.
+  "kv_namespaces": [
+    {
+      "binding": "IMAGES_KV",
+      // Replace with the id printed by `wrangler kv namespace create IMAGES_KV`.
+      "id": "00000000000000000000000000000000"
+    }
+  ],
+
+  "vars": {
+    // Cloudflare Access settings for the backoffice (see README).
+    "ACCESS_TEAM_DOMAIN": "",
+    "ACCESS_AUD": ""
+  }
+
+  // Uncomment and set your domain to serve the menu at menu.<domain>:
+  // "routes": [{ "pattern": "menu.example.com", "custom_domain": true }]
+}

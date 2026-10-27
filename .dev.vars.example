@@ -1,0 +1,2 @@
+# Copy to .dev.vars for local development. Skips the Cloudflare Access check on /api/admin.
+DEV_SKIP_AUTH=true

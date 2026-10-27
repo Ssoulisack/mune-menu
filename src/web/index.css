@@ -1,0 +1,80 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "Noto Sans Lao", sans-serif;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { scrollbar-width: none; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white !important; }
+}
+
+/* ---- Public menu theme: colours come from CSS variables set by MenuView ---- */
+.m-root {
+  background: var(--m-bg);
+  color: var(--m-text);
+  font-family: var(--m-font);
+}
+.m-muted { color: color-mix(in srgb, var(--m-text) 62%, transparent); }
+.m-surface {
+  background: var(--m-surface);
+  border: 1px solid color-mix(in srgb, var(--m-text) 10%, transparent);
+  border-radius: var(--m-radius);
+}
+.m-chip {
+  background: var(--m-surface);
+  color: var(--m-text);
+  border: 1px solid color-mix(in srgb, var(--m-text) 14%, transparent);
+}
+.m-chip[aria-pressed="true"] { background: var(--m-primary); border-color: var(--m-primary); color: #fff; }
+.m-input {
+  background: var(--m-surface);
+  color: var(--m-text);
+  border: 1px solid color-mix(in srgb, var(--m-text) 14%, transparent);
+}
+.m-input::placeholder { color: color-mix(in srgb, var(--m-text) 45%, transparent); }
+.m-input:focus { border-color: var(--m-primary); }
+.m-nav { background: color-mix(in srgb, var(--m-bg) 92%, transparent); border-bottom: 1px solid color-mix(in srgb, var(--m-text) 10%, transparent); }
+.m-price { color: var(--m-primary); }
+.m-img { border-radius: calc(var(--m-radius) * 0.75); }
+/* Light text on dark themes needs a lighter accent for prices */
+.m-dark .m-price { color: color-mix(in srgb, var(--m-primary) 70%, white); }
+
+/* Falling seasonal decorations */
+.m-deco { pointer-events: none; overflow: hidden; z-index: 30; }
+.m-deco span {
+  position: absolute;
+  top: -10%;
+  animation: m-fall linear infinite;
+  opacity: 0.85;
+  will-change: transform;
+}
+@keyframes m-fall {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(24px, 60vh, 0) rotate(180deg); }
+  100% { transform: translate3d(-12px, 120vh, 0) rotate(360deg); }
+}
+.m-deco.m-contained span { animation-name: m-fall-contained; }
+@keyframes m-fall-contained {
+  0% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  100% { transform: translate3d(16px, 900px, 0) rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .m-deco { display: none; }
+}
+
+/* Category change slides in the direction of travel */
+@keyframes m-enter-up { from { opacity: 0; transform: translateY(28px); } to { opacity: 1; transform: none; } }
+@keyframes m-enter-down { from { opacity: 0; transform: translateY(-28px); } to { opacity: 1; transform: none; } }
+.m-enter-next { animation: m-enter-up 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+.m-enter-prev { animation: m-enter-down 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+@media (prefers-reduced-motion: reduce) {
+  .m-enter-next, .m-enter-prev { animation: none; }
+}
