@@ -7,6 +7,7 @@ const links = [
   { to: "/admin", label: "Items", end: true },
   { to: "/admin/categories", label: "Categories" },
   { to: "/admin/themes", label: "Themes" },
+  { to: "/admin/media", label: "Media" },
   { to: "/admin/settings", label: "Settings" },
   { to: "/admin/qr", label: "QR code" },
 ];

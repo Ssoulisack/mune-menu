@@ -1,0 +1,1 @@
+ALTER TABLE `items` ADD `options` text DEFAULT '[]' NOT NULL;

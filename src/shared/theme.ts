@@ -30,6 +30,15 @@ export type CornerKey = keyof typeof CORNERS;
 
 export const HEADER_STYLES = ["solid", "gradient", "image"] as const;
 
+// How items are laid out. Customers can switch on the menu; this is the starting choice.
+export const LAYOUTS = {
+  rows: { label: "Rows", hint: "Text with a small photo on the side" },
+  grid: { label: "Grid", hint: "Photo tiles, 2 per row on phones" },
+  column: { label: "Column", hint: "One big photo card per item" },
+} as const;
+export type LayoutKey = keyof typeof LAYOUTS;
+export const LAYOUT_KEYS = Object.keys(LAYOUTS) as LayoutKey[];
+
 export interface MenuTheme {
   primary: string; // header, active tab, prices
   background: string;
@@ -41,6 +50,7 @@ export interface MenuTheme {
   decoration: DecorationKey;
   font: FontKey;
   corners: CornerKey;
+  layout: LayoutKey;
   banner: Record<string, string>; // short message per language, e.g. "Happy Pi Mai!"
 }
 
@@ -55,6 +65,7 @@ export const DEFAULT_THEME: MenuTheme = {
   decoration: "none",
   font: "sans",
   corners: "rounded",
+  layout: "rows",
   banner: {},
 };
 

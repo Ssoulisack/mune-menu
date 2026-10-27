@@ -118,7 +118,11 @@ export default function Items() {
                         <span className="ml-2 rounded bg-amber-100 px-1.5 py-0.5 text-xs font-medium text-amber-800">needs translation</span>
                       )}
                     </div>
-                    <div className="text-sm text-stone-500">{formatPrice(item.price, currency)}</div>
+                    <div className="truncate text-sm text-stone-500">
+                      {item.options?.length
+                        ? item.options.map((o) => `${o.name} ${formatPrice(o.price, currency)}`).join(" · ")
+                        : formatPrice(item.price, currency)}
+                    </div>
                   </Link>
                   <Toggle checked={item.isAvailable} onChange={(v) => setAvailability(item, v)} label={`${item.name} available`} />
                 </div>

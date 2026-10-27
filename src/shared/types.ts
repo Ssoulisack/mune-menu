@@ -26,6 +26,13 @@ export interface CategoryDTO {
   translations: Translations<"name">;
 }
 
+/** A variant with its own price, e.g. Hot ₭38,000 / Iced ₭42,000. */
+export interface ItemOption {
+  name: string;
+  price: number;
+  translations: Translations<"name">;
+}
+
 export interface ItemDTO {
   id: number;
   categoryId: number;
@@ -37,6 +44,8 @@ export interface ItemDTO {
   isActive: boolean;
   sortOrder: number;
   translations: Translations<"name" | "description">;
+  /** When present, the menu lists these prices instead of `price` (which then holds the lowest). */
+  options: ItemOption[];
 }
 
 export interface SeasonDTO {
@@ -53,6 +62,15 @@ export interface PublicMenu {
   theme: MenuTheme;
   season: { id: number; name: string } | null;
   categories: (Pick<CategoryDTO, "id" | "name" | "translations"> & {
-    items: Pick<ItemDTO, "id" | "name" | "description" | "price" | "imageKey" | "isAvailable" | "translations">[];
+    items: Pick<ItemDTO, "id" | "name" | "description" | "price" | "imageKey" | "isAvailable" | "translations" | "options">[];
   })[];
+}
+
+/** A stored photo and what uses it (backoffice Media page). */
+export interface MediaDTO {
+  key: string;
+  size: number | null;
+  uploadedAt: string | null;
+  /** Labels like "Item: Café Latte", "Logo", "Season: Halloween (header photo)"; empty = unused. */
+  usedBy: string[];
 }

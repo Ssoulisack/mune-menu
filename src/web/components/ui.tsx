@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
+import type { ButtonHTMLAttributes, ComponentProps, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from "react";
 
 const variants = {
   primary: "bg-stone-900 text-white hover:bg-stone-700",
@@ -17,7 +17,7 @@ export function Button({ variant = "primary", className = "", ...props }: Button
 
 const fieldClass = "w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm outline-none focus:border-stone-900 focus:ring-1 focus:ring-stone-900";
 
-export const Input = (props: InputHTMLAttributes<HTMLInputElement>) => <input className={fieldClass} {...props} />;
+export const Input = ({ className = "", ...props }: ComponentProps<"input">) => <input className={`${fieldClass} ${className}`} {...props} />;
 export const Textarea = (props: TextareaHTMLAttributes<HTMLTextAreaElement>) => <textarea className={fieldClass} rows={3} {...props} />;
 export const Select = (props: SelectHTMLAttributes<HTMLSelectElement>) => <select className={fieldClass} {...props} />;
 

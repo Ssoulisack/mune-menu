@@ -169,7 +169,8 @@ export default function AnimatedList<T>({
     const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const springEase = CSS.supports?.("transition-timing-function", "linear(0, 1)") ? SPRING : "cubic-bezier(0.34, 1.4, 0.64, 1)";
     const transition = `transform 620ms ${springEase}, opacity 300ms cubic-bezier(0.22, 1, 0.36, 1), filter 200ms ease`;
-    const motion = { y: 0, h: 0, vy: 0, vh: 0, ty: 0, th: 0, ready: false };
+    // Ring position/size, its velocity and its target, per axis: x, y, width, height.
+    const motion = { pos: [0, 0, 0, 0], vel: [0, 0, 0, 0], target: [0, 0, 0, 0], ready: false };
     const fades = { top: "", bottom: "" };
     let boxes: ([number, number] | null)[] = [];
     let current: Animation | null = null;
@@ -202,11 +203,13 @@ export default function AnimatedList<T>({
     };
 
     const write = () => {
-      indicator.style.transform = `translate3d(0, ${motion.y.toFixed(2)}px, 0)`;
-      indicator.style.height = `${motion.h.toFixed(2)}px`;
+      const [x, y, w, h] = motion.pos;
+      indicator.style.transform = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+      indicator.style.width = `${w.toFixed(2)}px`;
+      indicator.style.height = `${h.toFixed(2)}px`;
     };
 
-    // Critically-damped spring that moves the selection ring between rows.
+    // Critically-damped spring that moves the selection ring between items.
     const step = (now: number) => {
       raf = 0;
       const dt = Math.min(0.05, (now - last) / 1000 || 0);
@@ -215,17 +218,17 @@ export default function AnimatedList<T>({
       const zeta = 0.78;
       const steps = Math.max(1, Math.ceil(dt / (1 / 240)));
       const h = dt / steps;
+      const { pos, vel, target } = motion;
       for (let i = 0; i < steps; i++) {
-        motion.vy += (omega * omega * (motion.ty - motion.y) - 2 * zeta * omega * motion.vy) * h;
-        motion.vh += (omega * omega * (motion.th - motion.h) - 2 * zeta * omega * motion.vh) * h;
-        motion.y += motion.vy * h;
-        motion.h += motion.vh * h;
+        for (let a = 0; a < 4; a++) {
+          vel[a] += (omega * omega * (target[a] - pos[a]) - 2 * zeta * omega * vel[a]) * h;
+          pos[a] += vel[a] * h;
+        }
       }
-      const moving = Math.abs(motion.ty - motion.y) > 0.05 || Math.abs(motion.th - motion.h) > 0.05 || Math.abs(motion.vy) + Math.abs(motion.vh) > 0.5;
+      const moving = pos.some((p, a) => Math.abs(target[a] - p) > 0.05) || vel.reduce((sum, v) => sum + Math.abs(v), 0) > 0.5;
       if (!moving) {
-        motion.y = motion.ty;
-        motion.h = motion.th;
-        motion.vy = motion.vh = 0;
+        motion.pos = [...target];
+        motion.vel = [0, 0, 0, 0];
       }
       write();
       if (moving) raf = requestAnimationFrame(step);
@@ -239,12 +242,10 @@ export default function AnimatedList<T>({
         return;
       }
       indicator.style.opacity = "1";
-      motion.ty = item.offsetTop;
-      motion.th = item.offsetHeight;
+      motion.target = [item.offsetLeft, item.offsetTop, item.offsetWidth, item.offsetHeight];
       if (snap || reduced || !motion.ready) {
-        motion.y = motion.ty;
-        motion.h = motion.th;
-        motion.vy = motion.vh = 0;
+        motion.pos = [...motion.target];
+        motion.vel = [0, 0, 0, 0];
         motion.ready = true;
         write();
         return;
@@ -370,9 +371,13 @@ export default function AnimatedList<T>({
       const count = s.items.length;
       if (!count) return;
       const index = s.selected;
+      // In a grid, up/down move a whole row and left/right move one tile.
+      const columns = getComputedStyle(track).gridTemplateColumns.split(" ").filter(Boolean).length || 1;
       let next: number | null = null;
-      if (event.key === "ArrowDown") next = index < 0 ? 0 : index + 1;
-      else if (event.key === "ArrowUp") next = index < 0 ? count - 1 : index - 1;
+      if (event.key === "ArrowDown") next = index < 0 ? 0 : index + columns;
+      else if (event.key === "ArrowUp") next = index < 0 ? count - 1 : index - columns;
+      else if (columns > 1 && event.key === "ArrowRight") next = index < 0 ? 0 : index + 1;
+      else if (columns > 1 && event.key === "ArrowLeft") next = index < 0 ? count - 1 : index - 1;
       else if (event.key === "Home") next = 0;
       else if (event.key === "End") next = count - 1;
       else if ((event.key === "Enter" || (focused && event.key === " ")) && index >= 0 && index < count) {

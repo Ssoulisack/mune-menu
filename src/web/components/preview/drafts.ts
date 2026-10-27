@@ -41,6 +41,7 @@ export function applyItemDraft(
       imageKey: draft.imageKey,
       isAvailable: draft.isAvailable,
       translations: draft.translations,
+      options: draft.options,
     };
     categories = categories.map((c) => {
       if (c.id !== draft.categoryId) return c;

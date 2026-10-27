@@ -5,9 +5,24 @@ import { MenuView } from "../components/MenuView";
 import { pickInitialLanguage, saveLanguage } from "../lib/language";
 import { useFetch } from "../lib/useFetch";
 
+const MAX_SILENT_RETRIES = 2;
+
 export default function Menu() {
-  const { data: menu, error, loading } = useFetch<PublicMenu>("/api/public/menu");
+  const { data: menu, error, loading, reload } = useFetch<PublicMenu>("/api/public/menu");
   const [lang, setLang] = useState<LangCode | null>(null);
+
+  // A failed load (flaky connection, a deploy in progress…) is retried quietly a couple of times,
+  // behind the loading screen, before the visitor sees an error.
+  const [retries, setRetries] = useState(0);
+  const retrying = Boolean(error) && retries < MAX_SILENT_RETRIES;
+  useEffect(() => {
+    if (!error || retries >= MAX_SILENT_RETRIES) return;
+    const id = setTimeout(() => {
+      setRetries((n) => n + 1);
+      reload();
+    }, 1500 * (retries + 1));
+    return () => clearTimeout(id);
+  }, [error, retries, reload]);
 
   useEffect(() => {
     if (menu && !lang) setLang(pickInitialLanguage(menu.settings.languages, menu.settings.defaultLanguage));
@@ -32,7 +47,7 @@ export default function Menu() {
     };
   }, []);
 
-  if (loading) return <MenuSkeleton />;
+  if (loading || retrying) return <MenuSkeleton />;
   if (error || !menu) {
     const ui = UI_STRINGS[pickInitialLanguage(["lo", "en"], "lo")];
     return (
@@ -61,7 +76,7 @@ export default function Menu() {
   );
 }
 
-function MenuSkeleton() {
+export function MenuSkeleton() {
   return (
     <div className="min-h-dvh animate-pulse bg-stone-50">
       <div className="h-36 bg-stone-300" />

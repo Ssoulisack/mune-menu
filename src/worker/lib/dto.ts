@@ -35,6 +35,7 @@ export const itemColumns = {
   isActive: items.isActive,
   sortOrder: items.sortOrder,
   translations: items.translations,
+  options: items.options,
 };
 
 export const seasonColumns = {

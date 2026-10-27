@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { integer, sqliteTable, text, index } from "drizzle-orm/sqlite-core";
 import type { LangCode, Translations } from "../../shared/i18n";
 import type { MenuTheme } from "../../shared/theme";
-import type { InfoField } from "../../shared/types";
+import type { InfoField, ItemOption } from "../../shared/types";
 
 const timestamps = {
   createdAt: integer("created_at", { mode: "timestamp" }).notNull().default(sql`(unixepoch())`),
@@ -63,6 +63,8 @@ export const items = sqliteTable(
     isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
     sortOrder: integer("sort_order").notNull().default(0),
     translations: translations<"name" | "description">(),
+    // Variants with their own price, e.g. [{"name": "Hot", "price": 38000, "translations": {}}].
+    options: text("options", { mode: "json" }).$type<ItemOption[]>().notNull().default(sql`'[]'`),
     ...timestamps,
   },
   (t) => [index("items_category_sort_idx").on(t.categoryId, t.sortOrder)],

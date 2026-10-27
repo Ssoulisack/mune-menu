@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import { useNavigate, useParams } from "react-router";
 import type { SeasonDTO, SettingsDTO } from "../../../shared/types";
 import { LANGUAGES } from "../../../shared/i18n";
-import { CORNERS, DECORATION_KEYS, DECORATIONS, DEFAULT_THEME, FONTS, THEME_PRESETS, type MenuTheme } from "../../../shared/theme";
+import { CORNERS, DECORATION_KEYS, DECORATIONS, DEFAULT_THEME, FONTS, LAYOUT_KEYS, LAYOUTS, THEME_PRESETS, type MenuTheme } from "../../../shared/theme";
 import { api } from "../../lib/api";
 import { daysInMonth, MONTH_NAMES } from "../../lib/dates";
 import { useFetch } from "../../lib/useFetch";
 import { ConfirmButton } from "../../components/ConfirmButton";
 import { ImageUpload } from "../../components/ImageUpload";
 import { ThemeSwatch } from "../../components/ThemeSwatch";
+import { LayoutIcon } from "../../components/LayoutIcon";
 import { Button, Card, ErrorNote, Field, Input, PageTitle, Select } from "../../components/ui";
 import { usePreview, usePreviewDraft, type PreviewDraft } from "../../components/preview/PreviewContext";
 import { applyThemeDraft, sameValue } from "../../components/preview/drafts";
@@ -28,7 +29,8 @@ function ThemeEditor({ id }: { id: string }) {
   const navigate = useNavigate();
 
   const { data: settings } = useFetch<SettingsDTO>("/api/admin/settings");
-  const { data: loadedDefault } = useFetch<MenuTheme>(isDefault ? "/api/admin/theme" : null);
+  // Seasons need the default theme too: one saved before it had a layout uses the default's layout.
+  const { data: loadedDefault } = useFetch<MenuTheme>("/api/admin/theme");
   const { data: loadedSeason, error: loadError } = useFetch<SeasonDTO>(!isDefault && !isNew ? `/api/admin/seasons/${id}` : null);
 
   const [theme, setTheme] = useState<MenuTheme | null>(isNew ? DEFAULT_THEME : null);
@@ -36,20 +38,25 @@ function ThemeEditor({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (loadedDefault) setTheme(loadedDefault);
-  }, [loadedDefault]);
+  const savedSeasonTheme = useMemo(
+    () => (loadedSeason && loadedDefault ? { ...DEFAULT_THEME, layout: loadedDefault.layout, ...(loadedSeason.theme as Partial<MenuTheme>) } : undefined),
+    [loadedSeason, loadedDefault],
+  );
 
   useEffect(() => {
-    if (!loadedSeason) return;
-    const { theme, ...fields } = loadedSeason;
-    setTheme(theme);
+    if (isDefault && loadedDefault) setTheme(loadedDefault);
+  }, [isDefault, loadedDefault]);
+
+  useEffect(() => {
+    if (!loadedSeason || !savedSeasonTheme) return;
+    const { theme: _, ...fields } = loadedSeason;
+    setTheme(savedSeasonTheme);
     setSeason(fields);
-  }, [loadedSeason]);
+  }, [loadedSeason, savedSeasonTheme]);
 
   // Live preview always shows the theme being edited (even a season that isn't running today).
   const { setLang: setPreviewLang } = usePreview();
-  const savedTheme = isDefault ? loadedDefault : loadedSeason?.theme;
+  const savedTheme = isDefault ? loadedDefault : savedSeasonTheme;
   const unsaved = isNew || !sameValue(theme, savedTheme);
   const themeDraft = useMemo<PreviewDraft | null>(() => (theme ? (menu) => applyThemeDraft(menu, theme) : null), [theme]);
   const themeName = isDefault ? "default theme" : season.name || "new season";
@@ -58,8 +65,8 @@ function ThemeEditor({ id }: { id: string }) {
   const set = <K extends keyof MenuTheme>(key: K, value: MenuTheme[K]) => setTheme((t) => (t ? { ...t, [key]: value } : t));
 
   function applyPreset(preset: (typeof THEME_PRESETS)[number]) {
-    // Keep the owner's uploaded header photo when switching presets.
-    setTheme((t) => ({ ...preset.theme, headerImageKey: t?.headerImageKey ?? null, headerStyle: t?.headerStyle === "image" ? "image" : preset.theme.headerStyle }));
+    // Keep the owner's uploaded header photo and layout when switching presets.
+    setTheme((t) => ({ ...preset.theme, layout: t?.layout ?? preset.theme.layout, headerImageKey: t?.headerImageKey ?? null, headerStyle: t?.headerStyle === "image" ? "image" : preset.theme.headerStyle }));
     if (isNew && !season.name) setSeason((s) => ({ ...s, name: preset.name }));
   }
 
@@ -180,6 +187,9 @@ function ThemeEditor({ id }: { id: string }) {
           </Field>
           <Field label="Corners">
             <Segmented value={theme.corners} onChange={(v) => set("corners", v)} options={Object.entries(CORNERS).map(([k, c]) => [k as MenuTheme["corners"], c.label])} />
+          </Field>
+          <Field label="Item layout" hint={`${LAYOUTS[theme.layout].hint}. Customers can still switch layout on the menu.`}>
+            <Segmented value={theme.layout} onChange={(v) => set("layout", v)} options={LAYOUT_KEYS.map((k) => [k, <LayoutIcon key={k} layout={k} label={LAYOUTS[k].label} />])} />
           </Field>
         </Card>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { PublicMenu } from "../../../shared/types";
 import { useFetch } from "../../lib/useFetch";
@@ -10,6 +10,25 @@ export default function Qr() {
   const [url, setUrl] = useState(`${location.origin}/`);
   const [caption, setCaption] = useState("ສະແກນເພື່ອເບິ່ງເມນູ · Scan for menu");
   const [dataUrl, setDataUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState<"ok" | "failed" | null>(null);
+  const linkRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!copied) return;
+    const id = setTimeout(() => setCopied(null), 2000);
+    return () => clearTimeout(id);
+  }, [copied]);
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied("ok");
+    } catch {
+      // Clipboard blocked (e.g. not allowed in this browser): select the link so it can be copied by hand.
+      linkRef.current?.select();
+      setCopied("failed");
+    }
+  }
 
   useEffect(() => {
     QRCode.toDataURL(url || " ", { width: 1024, margin: 2, errorCorrectionLevel: "M" })
@@ -23,8 +42,16 @@ export default function Qr() {
         <PageTitle>QR code</PageTitle>
         <div>
           <Card className="space-y-4">
-            <Field label="Menu link" hint="Use your real domain once deployed, e.g. https://menu.yourdomain.com/">
-              <Input value={url} onChange={(e) => setUrl(e.target.value)} />
+            <Field
+              label="Menu link"
+              hint={copied === "failed" ? "Couldn't copy automatically. The link is selected, so press Ctrl/⌘ + C." : "Share it in chats or on social media, or put it on your website."}
+            >
+              <div className="flex gap-2">
+                <Input ref={linkRef} value={url} onChange={(e) => setUrl(e.target.value)} className="min-w-0 flex-1" />
+                <Button type="button" variant="secondary" onClick={copyLink} disabled={!url.trim()} className="shrink-0">
+                  {copied === "ok" ? "Copied ✓" : "Copy link"}
+                </Button>
+              </div>
             </Field>
             <Field label="Caption on the printed card">
               <Input value={caption} onChange={(e) => setCaption(e.target.value)} />

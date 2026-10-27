@@ -25,7 +25,8 @@ export async function buildMenu(db: DrizzleD1Database<typeof schema>): Promise<P
 
   return {
     settings: menuSettings,
-    theme: { ...DEFAULT_THEME, ...(season?.theme ?? defaultTheme) },
+    // A season saved before it had a layout uses the default theme's layout.
+    theme: { ...DEFAULT_THEME, layout: defaultTheme?.layout ?? DEFAULT_THEME.layout, ...(season?.theme ?? defaultTheme) },
     season: season && { id: season.id, name: season.name },
     categories: cats
       .map((cat) => ({
@@ -36,7 +37,16 @@ export async function buildMenu(db: DrizzleD1Database<typeof schema>): Promise<P
           .filter((i) => i.categoryId === cat.id)
           // Sold-out items sink to the bottom; the admin order is kept within each group (sort is stable).
           .sort((a, b) => Number(b.isAvailable) - Number(a.isAvailable))
-          .map(({ id, name, description, price, imageKey, isAvailable, translations }) => ({ id, name, description, price, imageKey, isAvailable, translations })),
+          .map(({ id, name, description, price, imageKey, isAvailable, translations, options }) => ({
+            id,
+            name,
+            description,
+            price,
+            imageKey,
+            isAvailable,
+            translations,
+            options,
+          })),
       }))
       .filter((cat) => cat.items.length > 0),
   };

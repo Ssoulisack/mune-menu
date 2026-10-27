@@ -5,13 +5,14 @@ import { z } from "zod";
 import { asc, eq, sql } from "drizzle-orm";
 import { categories, items, seasons, settings } from "../db/schema";
 import { categoryColumns, DEFAULT_SETTINGS, itemColumns, seasonColumns, settingsColumns } from "../lib/dto";
-import { langCode, monthDay, optionalText, themeSchema, translationsSchema } from "../lib/validation";
+import { itemOptionsSchema, langCode, monthDay, optionalText, themeSchema, translationsSchema } from "../lib/validation";
 import { findActiveSeason } from "../lib/season";
 import { buildMenu } from "../lib/menu";
 import { DEFAULT_THEME, type MenuTheme } from "../../shared/theme";
 import type { LangCode } from "../../shared/i18n";
+import type { MediaDTO } from "../../shared/types";
 import { purgeMenuCache } from "../lib/cache";
-import { ALLOWED_IMAGE_TYPES, imageStore, MAX_IMAGE_BYTES } from "../lib/images";
+import { ALLOWED_IMAGE_TYPES, imageStore, MAX_IMAGE_BYTES, PHOTO_PREFIX } from "../lib/images";
 import { requireAccess } from "../middleware/access";
 import type { AppEnv } from "../env";
 
@@ -210,12 +211,18 @@ const itemFields = z.object({
   isAvailable: z.boolean(),
   isActive: z.boolean(),
   translations: translationsSchema({ name: 120, description: 1000 }),
+  options: itemOptionsSchema,
 });
 const itemCreate = itemFields.extend({
   isAvailable: z.boolean().default(true),
   isActive: z.boolean().default(true),
   translations: translationsSchema({ name: 120, description: 1000 }).default({}),
+  options: itemOptionsSchema.default([]),
 });
+
+// With options, the item's own price is the cheapest option (used for sorting and "from" prices).
+const withOptionPrice = <T extends { price?: number; options?: { price: number }[] }>(body: T): T =>
+  body.options?.length ? { ...body, price: Math.min(...body.options.map((o) => o.price)) } : body;
 
 adminRoutes.get("/items", zValidator("query", z.object({ categoryId: z.coerce.number().int().optional() })), async (c) => {
   const { categoryId } = c.req.valid("query");
@@ -235,7 +242,7 @@ adminRoutes.get("/items/:id", zValidator("param", idParam), async (c) => {
 });
 
 adminRoutes.post("/items", zValidator("json", itemCreate), async (c) => {
-  const body = c.req.valid("json");
+  const body = withOptionPrice(c.req.valid("json"));
   const db = c.get("db");
   const { next } = (await db
     .select({ next: sql<number>`coalesce(max(${items.sortOrder}), -1) + 1` })
@@ -255,7 +262,7 @@ adminRoutes.put("/items/reorder", zValidator("json", z.object({ ids: z.array(z.n
 
 adminRoutes.put("/items/:id", zValidator("param", idParam), zValidator("json", itemFields.partial()), async (c) => {
   const { id } = c.req.valid("param");
-  const body = c.req.valid("json");
+  const body = withOptionPrice(c.req.valid("json"));
   const db = c.get("db");
   const old = await db.select({ imageKey: items.imageKey }).from(items).where(eq(items.id, id)).get();
   if (!old) throw new HTTPException(404, { message: "Item not found" });
@@ -309,3 +316,47 @@ adminRoutes.post("/upload", async (c) => {
   await imageStore(c.env).put(key, await file.arrayBuffer(), file.type);
   return c.json({ key }, 201);
 });
+
+// ---- Media (every stored photo) ----
+
+/** Which photos are in use, and by what: item photos, the logo, and theme header photos. */
+async function imageUsage(db: AppEnv["Variables"]["db"]) {
+  const [itemRows, settingsRow, seasonRows] = await Promise.all([
+    db.select({ name: items.name, key: items.imageKey }).from(items),
+    db.select({ logoKey: settings.logoKey, theme: settings.theme }).from(settings).where(eq(settings.id, 1)).get(),
+    db.select({ name: seasons.name, theme: seasons.theme }).from(seasons),
+  ]);
+  const usage = new Map<string, string[]>();
+  const add = (key: string | null | undefined, label: string) => {
+    if (key) usage.set(key, [...(usage.get(key) ?? []), label]);
+  };
+  for (const row of itemRows) add(row.key, `Item: ${row.name}`);
+  add(settingsRow?.logoKey, "Logo");
+  add(settingsRow?.theme?.headerImageKey, "Default theme (header photo)");
+  for (const row of seasonRows) add(row.theme?.headerImageKey, `Season: ${row.name} (header photo)`);
+  return usage;
+}
+
+adminRoutes.get("/media", async (c) => {
+  const [stored, usage] = await Promise.all([imageStore(c.env).list(), imageUsage(c.get("db"))]);
+  const media: MediaDTO[] = stored
+    .map((img) => ({ ...img, usedBy: usage.get(img.key) ?? [] }))
+    // Newest first; photos without a date (older uploads) last.
+    .sort((a, b) => (b.uploadedAt ?? "").localeCompare(a.uploadedAt ?? ""));
+  return c.json(media);
+});
+
+// Deletes photos that nothing uses. Photos still in use are refused, so the menu never shows a broken image.
+adminRoutes.post(
+  "/media/delete",
+  zValidator("json", z.object({ keys: z.array(z.string().startsWith(PHOTO_PREFIX).max(200)).min(1).max(200) })),
+  async (c) => {
+    const { keys } = c.req.valid("json");
+    const usage = await imageUsage(c.get("db"));
+    const inUse = keys.filter((k) => usage.has(k));
+    if (inUse.length) throw new HTTPException(409, { message: `Still in use: ${inUse.map((k) => usage.get(k)!.join(", ")).join("; ")}` });
+    const store = imageStore(c.env);
+    await Promise.all(keys.map((k) => store.delete(k)));
+    return c.json({ deleted: keys.length });
+  },
+);

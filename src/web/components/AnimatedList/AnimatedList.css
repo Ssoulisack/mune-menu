@@ -61,10 +61,11 @@
 .animated-list__viewport--bare { scrollbar-width: none; }
 .animated-list__viewport--bare::-webkit-scrollbar { display: none; }
 
+/* One column by default; set --al-columns for a grid of tiles. */
 .animated-list__track {
   position: relative;
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: repeat(var(--al-columns, 1), minmax(0, 1fr));
   gap: var(--al-gap);
 }
 
@@ -156,8 +157,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  right: 0;
   z-index: 2;
+  width: 0;
   height: 0;
   opacity: 0;
   pointer-events: none;

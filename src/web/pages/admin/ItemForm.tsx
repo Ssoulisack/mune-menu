@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import type { CategoryDTO, ItemDTO, SettingsDTO } from "../../../shared/types";
-import { LANGUAGES } from "../../../shared/i18n";
+import { LANGUAGES, type LangCode } from "../../../shared/i18n";
 import { api } from "../../lib/api";
 import { parsePriceInput, pricePlaceholder, toPriceInput } from "../../lib/money";
 import { useFetch } from "../../lib/useFetch";
@@ -21,7 +21,16 @@ interface FormState {
   isAvailable: boolean;
   isActive: boolean;
   translations: ItemDTO["translations"];
+  options: OptionState[];
 }
+
+interface OptionState {
+  name: string;
+  price: string;
+  translations: ItemDTO["options"][number]["translations"];
+}
+
+const MAX_OPTIONS = 12;
 
 export default function ItemForm() {
   const { id } = useParams();
@@ -51,6 +60,7 @@ export default function ItemForm() {
         isAvailable: true,
         isActive: true,
         translations: {},
+        options: [],
       };
     } else if (item) {
       initial = {
@@ -62,6 +72,7 @@ export default function ItemForm() {
         isAvailable: item.isAvailable,
         isActive: item.isActive,
         translations: item.translations,
+        options: (item.options ?? []).map((o) => ({ name: o.name, price: toPriceInput(o.price, currency), translations: o.translations })),
       };
     }
     if (initial) {
@@ -74,6 +85,9 @@ export default function ItemForm() {
   const dirty = form !== null && (isNew ? form.name.trim() !== "" : !sameValue(form, initialForm));
   const previewDraft = useMemo(() => {
     if (!form || !dirty || !categories) return null;
+    const options = form.options
+      .map((o) => ({ name: o.name.trim(), price: parsePriceInput(o.price, currency), translations: o.translations }))
+      .filter((o): o is ItemDTO["options"][number] => o.name !== "" && o.price !== null);
     const draft = {
       id: isNew ? null : Number(id),
       categoryId: Number(form.categoryId),
@@ -84,6 +98,7 @@ export default function ItemForm() {
       isAvailable: form.isAvailable,
       isActive: form.isActive,
       translations: form.translations,
+      options,
     };
     return (menu: Parameters<typeof applyItemDraft>[0]) => applyItemDraft(menu, draft, categories);
   }, [form, dirty, categories, isNew, id, currency, item]);
@@ -91,11 +106,28 @@ export default function ItemForm() {
   usePreviewFocus(form ? Number(form.categoryId) : null);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((f) => (f ? { ...f, [key]: value } : f));
+  const setOption = (index: number, patch: Partial<OptionState>) =>
+    setForm((f) => (f ? { ...f, options: f.options.map((o, i) => (i === index ? { ...o, ...patch } : o)) } : f));
+  const addOption = () =>
+    setForm((f) => (f ? { ...f, options: [...f.options, { name: "", price: f.options.length ? "" : f.price, translations: {} }] } : f));
+  const removeOption = (index: number) => setForm((f) => (f ? { ...f, options: f.options.filter((_, i) => i !== index) } : f));
+  const hasOptions = form ? form.options.length > 0 : false;
+  const extraLangs = otherLanguages(settings?.languages, settings?.defaultLanguage);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
-    const price = parsePriceInput(form.price, currency);
+    // Blank option rows are ignored; a named option needs a valid price.
+    const filled = form.options.filter((o) => o.name.trim() || o.price.trim());
+    const options = [];
+    for (const o of filled) {
+      const optionPrice = parsePriceInput(o.price, currency);
+      if (!o.name.trim()) return setError("Every option needs a name");
+      if (optionPrice === null) return setError(`Enter a valid price for “${o.name.trim()}”`);
+      options.push({ name: o.name.trim(), price: optionPrice, translations: o.translations });
+    }
+    // With options, the item's own price is the cheapest option (the server enforces this too).
+    const price = options.length ? Math.min(...options.map((o) => o.price)) : parsePriceInput(form.price, currency);
     if (price === null) return setError("Enter a valid price");
     setSaving(true);
     setError(null);
@@ -108,6 +140,7 @@ export default function ItemForm() {
       isAvailable: form.isAvailable,
       isActive: form.isActive,
       translations: form.translations,
+      options,
     };
     try {
       if (isNew) await api.post("/api/admin/items", body);
@@ -148,9 +181,15 @@ export default function ItemForm() {
             <Textarea maxLength={1000} value={form.description} onChange={(e) => set("description", e.target.value)} />
           </Field>
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label={`Price (${currency})`}>
-              <Input required inputMode="decimal" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder={pricePlaceholder(currency)} />
-            </Field>
+            {hasOptions ? (
+              <Field label={`Price (${currency})`} hint="Set per option below.">
+                <Input disabled value="—" />
+              </Field>
+            ) : (
+              <Field label={`Price (${currency})`}>
+                <Input required inputMode="decimal" value={form.price} onChange={(e) => set("price", e.target.value)} placeholder={pricePlaceholder(currency)} />
+              </Field>
+            )}
             <Field label="Category">
               <Select required value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)}>
                 {categories?.map((c) => (
@@ -173,11 +212,34 @@ export default function ItemForm() {
           </div>
         </Card>
 
-        {otherLanguages(settings?.languages, settings?.defaultLanguage).length > 0 && (
+        <Card className="space-y-3">
+          <div>
+            <h2 className="font-semibold">Options</h2>
+            <p className="text-sm text-stone-500">Optional. Variants with their own price, e.g. Hot ₭38,000 / Iced ₭42,000, or sizes.</p>
+          </div>
+          {form.options.map((o, i) => (
+            <OptionRow
+              key={i}
+              index={i}
+              option={o}
+              currency={currency}
+              languages={extraLangs}
+              onChange={(patch) => setOption(i, patch)}
+              onRemove={() => removeOption(i)}
+            />
+          ))}
+          {form.options.length < MAX_OPTIONS && (
+            <Button type="button" variant="secondary" onClick={addOption}>
+              + Add option
+            </Button>
+          )}
+        </Card>
+
+        {extraLangs.length > 0 && (
           <Card className="space-y-3">
             <h2 className="font-semibold">Translations</h2>
             <TranslationFields
-              languages={otherLanguages(settings?.languages, settings?.defaultLanguage)}
+              languages={extraLangs}
               value={form.translations}
               onChange={(t) => set("translations", t)}
               fields={[
@@ -207,5 +269,68 @@ export default function ItemForm() {
         </div>
       </form>
     </>
+  );
+}
+
+function OptionRow({
+  index,
+  option,
+  currency,
+  languages,
+  onChange,
+  onRemove,
+}: {
+  index: number;
+  option: OptionState;
+  currency: string;
+  languages: LangCode[];
+  onChange: (patch: Partial<OptionState>) => void;
+  onRemove: () => void;
+}) {
+  return (
+    <div className="space-y-2 rounded-lg border border-stone-200 p-3">
+      <div className="flex items-center gap-2">
+        <Input
+          aria-label={`Option ${index + 1} name`}
+          maxLength={40}
+          placeholder={index === 0 ? "e.g. Hot" : index === 1 ? "e.g. Iced" : "Option name"}
+          value={option.name}
+          onChange={(e) => onChange({ name: e.target.value })}
+          className="min-w-0 flex-1"
+        />
+        <Input
+          aria-label={`Option ${index + 1} price (${currency})`}
+          inputMode="decimal"
+          placeholder={pricePlaceholder(currency)}
+          value={option.price}
+          onChange={(e) => onChange({ price: e.target.value })}
+          className="w-32! shrink-0"
+        />
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove option ${index + 1}`}
+          className="grid size-9 shrink-0 place-items-center rounded-lg text-stone-400 hover:bg-stone-100 hover:text-red-600"
+        >
+          ✕
+        </button>
+      </div>
+      {languages.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {languages.map((lang) => (
+            <Input
+              key={lang}
+              lang={lang}
+              aria-label={`Option ${index + 1} name (${LANGUAGES[lang].label})`}
+              maxLength={40}
+              placeholder={`${LANGUAGES[lang].label}${option.name ? `: ${option.name}` : ""}`}
+              value={option.translations[lang]?.name ?? ""}
+              onChange={(e) => onChange({ translations: { ...option.translations, [lang]: { name: e.target.value } } })}
+              className="min-w-32 flex-1"
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }

@@ -404,26 +404,43 @@ const ClickSpark = forwardRef<ClickSparkHandle, ClickSparkProps>(
         if (!raf) raf = requestAnimationFrame(frame);
       };
 
-      // Mouse fires on press for instant feedback; touch/pen/keyboard fire on click.
+      // Mouse sparks on press for instant feedback; touch/pen on release, so a swipe that scrolls
+      // (the browser cancels the pointer) doesn't sparkle. Clicks can't tell the input apart:
+      // iOS Safari reports the click after a tap as pointerType "mouse". So click only covers
+      // keyboard activation (detail 0) and browsers without pointer events.
+      let press: { x: number; y: number } | null = null;
+
       const onPointerDown = (event: PointerEvent) => {
-        if (event.pointerType !== "mouse" || event.button !== 0) return;
+        if (!event.isPrimary || event.button !== 0) return;
         lastPress = { time: performance.now(), x: event.clientX, y: event.clientY };
-        spawn(event.clientX, event.clientY);
+        if (event.pointerType === "mouse") spawn(event.clientX, event.clientY);
+        else press = { x: event.clientX, y: event.clientY };
+      };
+
+      const onPointerUp = (event: PointerEvent) => {
+        if (!press || !event.isPrimary) return;
+        const tap = Math.hypot(event.clientX - press.x, event.clientY - press.y) < 12;
+        press = null;
+        if (tap) spawn(event.clientX, event.clientY);
+      };
+
+      const onPointerCancel = () => {
+        press = null;
       };
 
       const onClick = (event: MouseEvent) => {
-        if ("pointerType" in event && (event as PointerEvent).pointerType === "mouse") return;
         if (event.detail === 0) {
           const target = event.target instanceof Element ? event.target : root;
           const rect = target.getBoundingClientRect();
           spawn(rect.left + rect.width / 2, rect.top + rect.height / 2);
           return;
         }
-        const recent = performance.now() - lastPress.time < 700 && Math.hypot(event.clientX - lastPress.x, event.clientY - lastPress.y) < 12;
-        if (!recent) spawn(event.clientX, event.clientY);
+        if (performance.now() - lastPress.time > 1500) spawn(event.clientX, event.clientY);
       };
 
       root.addEventListener("pointerdown", onPointerDown);
+      root.addEventListener("pointerup", onPointerUp);
+      root.addEventListener("pointercancel", onPointerCancel);
       root.addEventListener("click", onClick);
 
       engineRef.current = {
@@ -436,6 +453,8 @@ const ClickSpark = forwardRef<ClickSparkHandle, ClickSparkProps>(
       return () => {
         cancelAnimationFrame(raf);
         root.removeEventListener("pointerdown", onPointerDown);
+        root.removeEventListener("pointerup", onPointerUp);
+        root.removeEventListener("pointercancel", onPointerCancel);
         root.removeEventListener("click", onClick);
         for (const burst of [...bursts]) remove(burst);
         engineRef.current = null;

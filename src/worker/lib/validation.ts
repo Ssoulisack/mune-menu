@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { isLangCode, LANG_CODES } from "../../shared/i18n";
-import { CORNERS, DECORATION_KEYS, FONTS, HEADER_STYLES } from "../../shared/theme";
+import { CORNERS, DECORATION_KEYS, FONTS, HEADER_STYLES, LAYOUT_KEYS } from "../../shared/theme";
 
 const hex = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
@@ -24,6 +24,17 @@ export function translationsSchema<F extends string>(fields: Record<F, number>) 
     });
 }
 
+/** Item variants; the item's own price is set to the cheapest one. */
+export const itemOptionsSchema = z
+  .array(
+    z.object({
+      name: z.string().trim().min(1).max(40),
+      price: z.number().int().min(0),
+      translations: translationsSchema({ name: 40 }).default({}),
+    }),
+  )
+  .max(12);
+
 export const themeSchema = z.object({
   primary: hex,
   background: hex,
@@ -35,6 +46,7 @@ export const themeSchema = z.object({
   decoration: z.enum(DECORATION_KEYS as [string, ...string[]]),
   font: z.enum(Object.keys(FONTS) as [string, ...string[]]),
   corners: z.enum(Object.keys(CORNERS) as [string, ...string[]]),
+  layout: z.enum(LAYOUT_KEYS as [string, ...string[]]).default("rows"),
   banner: z
     .record(z.string(), z.string().trim().max(200))
     .refine((b) => Object.keys(b).every(isLangCode), "Unknown language code")
