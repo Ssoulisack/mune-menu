@@ -62,12 +62,24 @@ export default function Media() {
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           {selected.size > 0 && (
-            <ConfirmButton onConfirm={() => remove([...selected])} disabled={busy}>
+            <ConfirmButton
+              onConfirm={() => remove([...selected])}
+              disabled={busy}
+              title={`Delete ${selected.size} photo${selected.size === 1 ? "" : "s"}?`}
+              message="They aren't used anywhere on the menu. They'll be removed from storage permanently."
+              confirmLabel="Delete photos"
+            >
               {`Delete selected (${selected.size})`}
             </ConfirmButton>
           )}
           {unused.length > 0 && selected.size === 0 && (
-            <ConfirmButton onConfirm={() => remove(unused.map((m) => m.key))} disabled={busy}>
+            <ConfirmButton
+              onConfirm={() => remove(unused.map((m) => m.key))}
+              disabled={busy}
+              title={`Delete all ${unused.length} unused photo${unused.length === 1 ? "" : "s"}?`}
+              message={`This frees ${formatSize(unusedSize)}. Photos used on the menu are kept. Deleted photos can't be recovered.`}
+              confirmLabel="Delete photos"
+            >
               {`Delete all unused (${unused.length})`}
             </ConfirmButton>
           )}

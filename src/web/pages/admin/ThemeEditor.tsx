@@ -219,7 +219,13 @@ function ThemeEditor({ id }: { id: string }) {
           </Button>
           {!isDefault && !isNew && (
             <div className="ml-auto">
-              <ConfirmButton onConfirm={onDelete} disabled={saving}>
+              <ConfirmButton
+                onConfirm={onDelete}
+                disabled={saving}
+                title={`Delete season “${loadedSeason?.name ?? season.name}”?`}
+                message="Its theme won't switch on during its dates any more; the default theme shows instead. This can't be undone."
+                confirmLabel="Delete season"
+              >
                 Delete season
               </ConfirmButton>
             </div>

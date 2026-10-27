@@ -261,7 +261,13 @@ export default function ItemForm() {
           </Button>
           {!isNew && (
             <div className="ml-auto">
-              <ConfirmButton onConfirm={onDelete} disabled={saving}>
+              <ConfirmButton
+                onConfirm={onDelete}
+                disabled={saving}
+                title={`Delete “${item?.name ?? form.name}”?`}
+                message="It will be removed from the menu, together with its photo and options. This can't be undone."
+                confirmLabel="Delete item"
+              >
                 Delete item
               </ConfirmButton>
             </div>

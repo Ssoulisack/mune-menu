@@ -114,7 +114,19 @@ export default function Categories() {
                     </button>
                     <span className="text-xs text-stone-500">{c.isActive ? "Visible" : "Hidden"}</span>
                     <Toggle checked={c.isActive} label={`${c.name} visible`} onChange={(isActive) => mutate(() => api.put(`/api/admin/categories/${c.id}`, { isActive }))} />
-                    <ConfirmButton onConfirm={() => mutate(() => api.del(`/api/admin/categories/${c.id}`))}>Delete</ConfirmButton>
+                    <ConfirmButton
+                      onConfirm={() => mutate(() => api.del(`/api/admin/categories/${c.id}`))}
+                      title={`Delete category “${c.name}”?`}
+                      message={
+                        <>
+                          <strong className="text-red-700">All items in this category</strong> and their photos will be deleted too. To keep the
+                          items, move them to another category first, or just hide the category. This can't be undone.
+                        </>
+                      }
+                      confirmLabel="Delete category"
+                    >
+                      Delete
+                    </ConfirmButton>
                   </>
                 )}
               </div>
