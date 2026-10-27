@@ -16,8 +16,7 @@
     {
       "binding": "DB",
       "database_name": "mune-db",
-      // Replace with the id printed by `wrangler d1 create mune-db` before deploying.
-      "database_id": "00000000-0000-0000-0000-000000000000",
+      "database_id": "cd58d2c3-24c0-46cb-9dc0-b6072afd99ab",
       "migrations_dir": "migrations"
     }
   ],
@@ -27,17 +26,16 @@
   "kv_namespaces": [
     {
       "binding": "IMAGES_KV",
-      // Replace with the id printed by `wrangler kv namespace create IMAGES_KV`.
-      "id": "00000000000000000000000000000000"
+      "id": "c34ed962db79422fba56e54ac4c9a6ae"
     }
   ],
 
   "vars": {
     // Cloudflare Access settings for the backoffice (see README).
-    "ACCESS_TEAM_DOMAIN": "",
-    "ACCESS_AUD": ""
-  }
+    "ACCESS_TEAM_DOMAIN": "24thurs.cloudflareaccess.com",
+    "ACCESS_AUD": "abe0e58646a4bd2fe4b061299ec9cf560e753e01cbb905988d1782a875f57b67"
+  },
 
-  // Uncomment and set your domain to serve the menu at menu.<domain>:
-  // "routes": [{ "pattern": "menu.example.com", "custom_domain": true }]
+  // Public address. Cloudflare creates the DNS record and certificate on deploy.
+  "routes": [{ "pattern": "menu.24thurs.site", "custom_domain": true }]
 }
