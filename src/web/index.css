@@ -250,18 +250,34 @@ html {
   .m-deco { display: none; }
 }
 
-/* Category change slides like a carousel: the old page slides out one side while the new one slides
-   in from the other (forward: right to left; back: left to right). Keep 450ms in sync with SLIDE_MS. */
-.m-enter-next, .m-enter-prev, .m-leave-next, .m-leave-prev { animation: 450ms cubic-bezier(0.32, 0.72, 0, 1) both; }
-.m-enter-next { animation-name: m-slide-in-from-right; }
-.m-enter-prev { animation-name: m-slide-in-from-left; }
-.m-leave-next { animation-name: m-slide-out-to-left; }
-.m-leave-prev { animation-name: m-slide-out-to-right; }
-@keyframes m-slide-in-from-right { from { transform: translateX(100%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@keyframes m-slide-in-from-left { from { transform: translateX(-100%); opacity: 0.4; } to { transform: none; opacity: 1; } }
-@keyframes m-slide-out-to-left { from { transform: none; opacity: 1; } to { transform: translateX(-100%); opacity: 0.4; } }
-@keyframes m-slide-out-to-right { from { transform: none; opacity: 1; } to { transform: translateX(100%); opacity: 0.4; } }
+/* Category change: the old page slides out quickly, then — once it's gone, so nothing overlaps —
+   the new category's items slide in one after another (forward: from the right; back: from the left).
+   Items after the 12th arrive with the 12th. Total ≈ 200ms + 11 × 55ms + 480ms = 1285ms,
+   which SLIDE_MS (MenuView.tsx) must cover. */
+/* Full shorthand per class: a shorthand without a name gets minified to "animation: none" (duration 0). */
+.m-leave-next { animation: m-slide-out-to-left 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+.m-leave-prev { animation: m-slide-out-to-right 220ms cubic-bezier(0.4, 0, 1, 1) both; }
+@keyframes m-slide-out-to-left { to { transform: translateX(-40%); opacity: 0; } }
+@keyframes m-slide-out-to-right { to { transform: translateX(40%); opacity: 0; } }
+
+.m-enter-next h2, .m-enter-next .animated-list__item { animation: m-item-from-right 480ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both; }
+.m-enter-prev h2, .m-enter-prev .animated-list__item { animation: m-item-from-left 480ms cubic-bezier(0.22, 1, 0.36, 1) 200ms both; }
+.m-enter-next .animated-list__item:nth-child(n + 13), .m-enter-prev .animated-list__item:nth-child(n + 13) { animation-delay: 805ms; }
+.m-enter-next .animated-list__item:nth-child(1), .m-enter-prev .animated-list__item:nth-child(1) { animation-delay: 200ms; }
+.m-enter-next .animated-list__item:nth-child(2), .m-enter-prev .animated-list__item:nth-child(2) { animation-delay: 255ms; }
+.m-enter-next .animated-list__item:nth-child(3), .m-enter-prev .animated-list__item:nth-child(3) { animation-delay: 310ms; }
+.m-enter-next .animated-list__item:nth-child(4), .m-enter-prev .animated-list__item:nth-child(4) { animation-delay: 365ms; }
+.m-enter-next .animated-list__item:nth-child(5), .m-enter-prev .animated-list__item:nth-child(5) { animation-delay: 420ms; }
+.m-enter-next .animated-list__item:nth-child(6), .m-enter-prev .animated-list__item:nth-child(6) { animation-delay: 475ms; }
+.m-enter-next .animated-list__item:nth-child(7), .m-enter-prev .animated-list__item:nth-child(7) { animation-delay: 530ms; }
+.m-enter-next .animated-list__item:nth-child(8), .m-enter-prev .animated-list__item:nth-child(8) { animation-delay: 585ms; }
+.m-enter-next .animated-list__item:nth-child(9), .m-enter-prev .animated-list__item:nth-child(9) { animation-delay: 640ms; }
+.m-enter-next .animated-list__item:nth-child(10), .m-enter-prev .animated-list__item:nth-child(10) { animation-delay: 695ms; }
+.m-enter-next .animated-list__item:nth-child(11), .m-enter-prev .animated-list__item:nth-child(11) { animation-delay: 750ms; }
+.m-enter-next .animated-list__item:nth-child(12), .m-enter-prev .animated-list__item:nth-child(12) { animation-delay: 805ms; }
+@keyframes m-item-from-right { from { transform: translateX(70%); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes m-item-from-left { from { transform: translateX(-70%); opacity: 0; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-  .m-enter-next, .m-enter-prev { animation: none; }
+  .m-enter-next h2, .m-enter-next .animated-list__item, .m-enter-prev h2, .m-enter-prev .animated-list__item { animation: none; }
   .m-leave-next, .m-leave-prev { display: none; }
 }

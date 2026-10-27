@@ -19,7 +19,7 @@ import { useEdgePager, type PageDirection } from "../lib/useEdgePager";
 type MenuItem = PublicMenu["categories"][number]["items"][number];
 
 const LAYOUT_STORAGE_KEY = "mune.layout";
-const SLIDE_MS = 450; // keep in sync with the m-enter / m-leave animations in index.css
+const SLIDE_MS = 1300; // covers the staggered item slide-in (m-enter / m-leave in index.css)
 /** The "All" tab: every category on one page. */
 const ALL = "all";
 
@@ -53,6 +53,7 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
   const rootRef = useRef<HTMLDivElement>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
   const navRef = useRef<HTMLElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
 
   // The theme sets the starting layout; a customer's own pick is remembered on their phone.
   // The admin preview (contained) always starts from the theme so the owner sees their setting.
@@ -155,12 +156,16 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
       landAtBottom.current = true;
       return;
     }
-    // If the visitor had scrolled down, jump back to the top of the list.
+    // If the visitor had scrolled down, jump back so the list starts right under the sticky nav.
+    // (Measured from <main>: a stuck sticky element reports where it's stuck, not where it sits.)
     const nav = navRef.current;
-    if (!nav) return;
+    const main = mainRef.current;
+    if (!nav || !main) return;
     const scroller = contained ? rootRef.current : null;
     const scrolled = scroller ? scroller.scrollTop : window.scrollY;
-    if (scrolled > nav.offsetTop) (scroller ?? window).scrollTo({ top: nav.offsetTop });
+    const viewTop = scroller ? scroller.getBoundingClientRect().top : 0;
+    const listTop = main.getBoundingClientRect().top - viewTop + scrolled - nav.offsetHeight;
+    if (scrolled > listTop) (scroller ?? window).scrollTo({ top: listTop });
   }
 
   // One category's items; `enterClass` plays the slide-in animation when the category changes.
@@ -405,7 +410,7 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
           </div>
         </nav>
 
-        <main className="@container relative mx-auto max-w-2xl overflow-x-clip px-4 pb-12">
+        <main ref={mainRef} className="@container relative mx-auto max-w-2xl overflow-x-clip px-4 pb-12">
           {visibleCategories.length === 0 && (
             <p className="m-muted py-16 text-center">{searching ? ui.noMatch.replace("{q}", query) : ui.empty}</p>
           )}
