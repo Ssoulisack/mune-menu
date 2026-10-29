@@ -238,7 +238,7 @@ export function MenuView({ menu, theme, lang, onLangChange, contained = false, f
       ref={rootRef}
       lang={lang}
       style={style}
-      className={`m-root relative ${dark ? "m-dark" : ""} ${contained ? "h-full overflow-y-auto" : "min-h-dvh"}`}
+      className={`m-root relative ${dark ? "m-dark" : ""} ${contained ? "h-full overflow-y-auto" : "min-h-lvh"}`}
     >
       <Decorations kind={theme.decoration} contained={contained} />
 

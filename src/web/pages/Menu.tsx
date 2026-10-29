@@ -34,6 +34,17 @@ export default function Menu() {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", menu.theme.primary);
   }, [menu]);
 
+  // Paint the page itself in the theme background: iOS Safari shows the html background below the
+  // menu while its toolbar expands/collapses and when bouncing past the bottom, which was white.
+  useEffect(() => {
+    if (!menu) return;
+    const html = document.documentElement;
+    html.style.backgroundColor = menu.theme.background;
+    return () => {
+      html.style.backgroundColor = "";
+    };
+  }, [menu]);
+
   useEffect(() => {
     if (lang) document.documentElement.lang = lang;
   }, [lang]);
@@ -78,7 +89,7 @@ export default function Menu() {
 
 export function MenuSkeleton() {
   return (
-    <div className="min-h-dvh animate-pulse bg-stone-50">
+    <div className="min-h-lvh animate-pulse bg-stone-50">
       <div className="h-36 bg-stone-300" />
       <div className="mx-auto max-w-2xl space-y-3 p-4">
         {Array.from({ length: 6 }, (_, i) => (
